@@ -2,9 +2,15 @@
 
 Uso:
     python3 pipeline.py            # corre todas las fuentes seguras (sin TikTok)
+    python3 pipeline.py --only trends   # corre sólo una fuente (para invocar desde cron)
     python3 pipeline.py --tiktok urls.txt   # además procesa una lista de URLs de TikTok
+
+Pensado para invocarse repetidamente desde cron (ver cron/ en la raíz del
+proyecto) — cada llamada es una corrida corta y se cierra sola, no es un
+proceso de larga duración.
 """
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -13,6 +19,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "db"))
 
 from connection import get_conn  # noqa: E402
 from dedup import DedupIndex  # noqa: E402
+
+LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "pipeline.log"
+LOG_PATH.parent.mkdir(exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.FileHandler(LOG_PATH), logging.StreamHandler()],
+)
+log = logging.getLogger("pipeline")
 
 
 def _existing_hashes(conn) -> set:
@@ -80,7 +96,7 @@ def run_trends(conn):
 
     rows = trends.fetch_hourly()
     n = _insert_trends(conn, rows, granularidad="hora")
-    print(f"[trends] {n} puntos horarios upserted")
+    log.info("[trends] %d puntos horarios upserted", n)
 
 
 def run_news(conn, idx: DedupIndex):
@@ -89,7 +105,7 @@ def run_news(conn, idx: DedupIndex):
     items = news.fetch_google_news() + news.fetch_prensa_directa()
     kept = _filter_new(items, idx)
     n = _insert_items(conn, kept)
-    print(f"[news] {len(items)} recolectados, {len(kept)} tras dedup, {n} insertados")
+    log.info("[news] %d recolectados, %d tras dedup, %d insertados", len(items), len(kept), n)
 
 
 def run_play_store(conn, idx: DedupIndex):
@@ -98,7 +114,9 @@ def run_play_store(conn, idx: DedupIndex):
     items = play_store.fetch_reviews()
     kept = _filter_new(items, idx)
     n = _insert_items(conn, kept)
-    print(f"[play_store] {len(items)} recolectados, {len(kept)} tras dedup, {n} insertados")
+    log.info(
+        "[play_store] %d recolectados, %d tras dedup, %d insertados", len(items), len(kept), n
+    )
 
 
 def run_tiktok(conn, idx: DedupIndex, urls_file: str):
@@ -108,7 +126,7 @@ def run_tiktok(conn, idx: DedupIndex, urls_file: str):
     items = tiktok.fetch_video_details_batch(urls)
     kept = _filter_new(items, idx)
     n = _insert_items(conn, kept)
-    print(f"[tiktok] {len(items)} recolectados, {len(kept)} tras dedup, {n} insertados")
+    log.info("[tiktok] %d recolectados, %d tras dedup, %d insertados", len(items), len(kept), n)
 
 
 def _filter_new(items, idx: DedupIndex):
@@ -126,9 +144,23 @@ def _filter_new(items, idx: DedupIndex):
     return kept
 
 
+def _safe(nombre, fn):
+    """Aísla la falla de una fuente para que no tumbe la corrida completa
+    (crítico en cron: un timeout de una API no debe bloquear a las demás)."""
+    try:
+        fn()
+    except Exception:
+        log.exception("[%s] falló, se continúa con las demás fuentes", nombre)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--tiktok", help="archivo con URLs de video de TikTok, una por línea")
+    parser.add_argument(
+        "--only",
+        choices=["trends", "news", "play"],
+        help="correr sólo esta fuente (para invocar desde cron con su propio intervalo)",
+    )
     parser.add_argument("--skip-trends", action="store_true")
     parser.add_argument("--skip-news", action="store_true")
     parser.add_argument("--skip-play", action="store_true")
@@ -138,14 +170,18 @@ def main():
     idx = DedupIndex()
     idx.seen_hashes_persisted = _existing_hashes(conn)
 
-    if not args.skip_trends:
-        run_trends(conn)
-    if not args.skip_news:
-        run_news(conn, idx)
-    if not args.skip_play:
-        run_play_store(conn, idx)
+    do_trends = args.only == "trends" or (args.only is None and not args.skip_trends)
+    do_news = args.only == "news" or (args.only is None and not args.skip_news)
+    do_play = args.only == "play" or (args.only is None and not args.skip_play)
+
+    if do_trends:
+        _safe("trends", lambda: run_trends(conn))
+    if do_news:
+        _safe("news", lambda: run_news(conn, idx))
+    if do_play:
+        _safe("play_store", lambda: run_play_store(conn, idx))
     if args.tiktok:
-        run_tiktok(conn, idx, args.tiktok)
+        _safe("tiktok", lambda: run_tiktok(conn, idx, args.tiktok))
 
     conn.close()
 

@@ -8,3 +8,4 @@ scratchpad/
 .pgdata/
 *.log
 logfile
+logs/
