@@ -466,9 +466,29 @@ El dashboard es donde investigas después. La alerta es donde actúas el mismo d
 
 - `nlp/geo.py` — extracción de geo por lista cerrada de distritos de Lima/Callao (más simple que
   un NER entrenado, mismo techo de cobertura baja advertido en CLAUDE.md). `enrich.py` la pobla
-  en `items.geo` junto con sentimiento/embedding. Cobertura real medida sobre el corpus: 10 de
-  598 items con geo detectado — confirma la advertencia de baja cobertura, pero suficiente para
-  el caso de Discord (los 3 reportes de avería sí trajeron distrito)
+  en `items.geo` junto con sentimiento/embedding.
+
+  **Cobertura real medida sobre el corpus completo (598 items): 1.7% (10 items)** — más baja que
+  el 20-40% estimado originalmente. Desglose por fuente: Google Play 0/336, TikTok 0/100,
+  Discord 3/19, Google News 7/143 (pero esas 7 son "Lima y Callao" en titulares de mercado, no
+  quejas geolocalizadas — ruido, no señal útil). Se investigó ampliar el diccionario con
+  patrones indirectos ("norte/sur de Lima", "mi distrito", nombres de calles) revisando el
+  corpus real, y **no aparecieron** — no es un problema del extractor, Google Play y TikTok (73%
+  del corpus) simplemente no traen esa información en el texto. Se agregaron Trujillo/Chiclayo
+  al diccionario (ciudades donde WIN opera) con un filtro de contexto que exige una señal de
+  queja junto al nombre de la ciudad, porque sus únicas menciones en el corpus son marketing de
+  TikTok (eventos patrocinados: "Rally de Arequipa", "Concurso Ecuestre Arequipa") — sin el
+  filtro, se contarían posts promocionales como incidencias reales en esa ciudad. Tras esta
+  ampliación la cobertura total **no cambió** (sigue en 10/598): confirma que el techo por
+  keywords ya está alcanzado con los datos disponibles hoy.
+
+  La señal geo real de estos 10 items sigue siendo suficiente para el caso de Discord (los 3
+  reportes de avería trajeron distrito, y eso bastó para el enrutamiento P1 de la Capa 5) — pero
+  no alcanza para segmentar geográficamente Google Play o TikTok. Para eso, la vía real no es
+  texto libre sino datos estructurados: cruzar contra el dataset público de OSIPTEL
+  (`conexiones-de-internet-fijo-osiptel`, ya identificado en la sección de fuentes) para
+  comparar volumen de quejas *totales* de una fuente contra la distribución real de clientes por
+  zona — no requiere geo por mensaje individual, sólo agregados. No implementado todavía.
 - `alerts/routing.py` — matriz tema → área/urgencia, con las señales de escalamiento automático
   (Indecopi, OSIPTEL, "voy a denunciar", etc.) y el criterio de cluster geográfico para
   avería/caída **ya conectado a geo real**: 2+ zonas distintas mencionadas el mismo día → P1;
