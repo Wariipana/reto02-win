@@ -68,13 +68,22 @@ Todo lo de esta tabla fue medido ejecutando código, no estimado.
 - Una vez se tiene el ID de un post (por scroll con sesión, o indexado en Google), el **detalle SÍ es accesible sin sesión**: la página de video individual trae los datos completos server-side en `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__">` → `__DEFAULT_SCOPE__["webapp.video-detail"].itemInfo.itemStruct` (incluye `desc`, `createTime`, `stats.diggCount/shareCount/commentCount/playCount`). Esto evade el WAF (Slardar) que sí bloquea peticiones HTTP planas (confirmado: `curl` da un HTML de challenge de 1.4KB; Playwright con user-agent de escritorio carga la página completa, ~500KB)
 - Google indexa videos individuales de esta cuenta (`site:tiktok.com/@win_internet/video`), lo que da una vía de descubrimiento de IDs sin sesión, pero incompleta y con "dark posts" (anuncios pagados no orgánicos) mezclados — se identifican porque el `webapp.video-detail` devuelve `statusMsg: "item is dark post"` en vez de `itemInfo`
 - Implicación de arquitectura: **enumerar posts nuevos requiere una sesión de cuenta persistente** (cookies renovadas periódicamente); **obtener detalle/comentarios de un post ya conocido no requiere sesión**
-- `ingest/save_session.py` resuelve esto sin que el asistente extraiga cookies directamente
-  (esa acción está bloqueada por diseño): lanza un Chromium headed visible en el escritorio/VNC
-  del usuario, el usuario inicia sesión manualmente ahí, y el propio Playwright serializa
-  cookies+localStorage a `.sessions/<sitio>_state.json` (fuera de git) una vez detecta que la
-  URL salió de `/login`. Ese archivo se puede pasar luego como `storage_state` a un
-  `browser.new_context()` para automatizar el scroll de descubrimiento sin pedir login cada vez.
-  Mismo mecanismo sirve para X/twitter si se decide usar una cuenta real más adelante
+- Se intentó automatizar esto con `ingest/save_session.py`: lanza un Chromium headed visible en
+  el escritorio/VNC del usuario, para que el usuario inicie sesión manualmente y Playwright
+  serialice cookies+localStorage a disco sin que el asistente las lea directamente (esa acción
+  — leer `document.cookie` — está bloqueada por diseño). **No funcionó**: la cuenta de TikTok
+  usada inicia sesión vía "Continuar con Google", y Google bloquea ese flujo OAuth dentro de
+  cualquier Chromium lanzado por Playwright por detectarlo como navegador automatizado,
+  independientemente de que las credenciales sean correctas (error visible: *"Couldn't sign
+  you in, this browser or app may not be secure"*). Tampoco hay una vía alternativa vía Claude
+  in Chrome: esa herramienta no expone ninguna función de exportar `storage_state`, sólo
+  navegación/clics/lectura de página — usarla para leer cookies caería en el mismo bloqueo
+- **Decisión aceptada**: el descubrimiento de posts nuevos de TikTok se queda manual y
+  periódico (repetir el flujo de scroll con Chrome real vía Claude in Chrome, como la primera
+  medición). Dado el ritmo de la cuenta (~0.5-1 posts/día), basta con repetirlo semanalmente.
+  Si se quisiera automatizar de verdad, la única vía sin este bloqueo sería una cuenta de
+  TikTok con login nativo (usuario/contraseña propios de TikTok, sin pasar por Google) — no
+  probado, requiere que el usuario decida crear/ajustar una cuenta así
 
 **Discord** (servidor oficial "WIN server", `discord.com/invite/gamer-win`) — hallazgo del
 usuario a partir de las ponencias del hackathon: WIN tiene un servidor propio para su línea de
