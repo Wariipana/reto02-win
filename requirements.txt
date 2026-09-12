@@ -1,0 +1,6 @@
+pytrends
+google-play-scraper
+feedparser
+requests
+pandas
+playwright
