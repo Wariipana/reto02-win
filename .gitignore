@@ -5,3 +5,6 @@ scratchpad/
 *.html
 *.png
 *.json
+.pgdata/
+*.log
+logfile

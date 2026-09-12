@@ -4,3 +4,5 @@ feedparser
 requests
 pandas
 playwright
+psycopg[binary]
+datasketch
