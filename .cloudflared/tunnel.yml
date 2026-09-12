@@ -1,0 +1,7 @@
+tunnel: e617796a-f7b6-4b45-b36b-15a3323f0dc5
+credentials-file: /config/.cloudflared/e617796a-f7b6-4b45-b36b-15a3323f0dc5.json
+
+ingress:
+  - hostname: pg-reto02.wariipana.de
+    service: tcp://127.0.0.1:5433
+  - service: http_status:404

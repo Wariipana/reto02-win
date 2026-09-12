@@ -8,7 +8,10 @@ de las instancias experimentales de otro proyecto (`/config/.dbengine/pg18`,
 - Data dir: `/config/Projects/reto02-win/.pgdata/data` (fuera de git)
 - Socket: `/config/Projects/reto02-win/.pgdata/run`
 - Puerto: `5433`
-- Usuario: `reto02` (trust auth, sólo accesible vía socket local)
+- Usuario: `reto02` — `trust` auth sólo por socket Unix local (usado por el pipeline
+  vía `connection.py`); las conexiones TCP (127.0.0.1/::1) requieren contraseña
+  (`scram-sha-256`) desde que se habilitó el acceso remoto por túnel, ver
+  `.cloudflared/README.md`
 - Base de datos: `reto02_win`
 - Extensión: `pgvector` 0.8.6 (paquete apt `postgresql-18-pgvector`, instalado a
   nivel de sistema pero sólo usado por esta base)
