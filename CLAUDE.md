@@ -40,7 +40,7 @@ Todo lo de esta tabla fue medido ejecutando código, no estimado.
 |---|---|---|---|---|
 | **Google Trends** | Horaria | 169 puntos en 7 días, 98 no-cero | **0** | Pulso primario |
 | **TikTok (@win_internet)** | Por post | 93 posts en 180d (0,52/día), acelerando (4-7/sem ago-sep vs 1-4/sem mar-may) | **0** | Pulso + texto, requiere sesión para enumerar |
-| **X / Twitter (twikit)** | Por post | sin medir | — | Pulso, riesgo ToS |
+| **X / Twitter (twikit)** | Por post | sin medir (ver detalle) | — | Pulso, riesgo ToS — sin alternativa gratuita/segura |
 | Google Play | Diaria | 67 en 180d (0,39/día) | 3 | Confirmación |
 | Google Maps | Por reseña | 683 reseñas ficha principal | no medible | Confirmación, frágil |
 | Google News RSS | Por nota | 15 en 180d | 13 | Escalamiento |
@@ -214,6 +214,23 @@ Modelos verificados como disponibles en HuggingFace:
 
 Con 150-250 ejemplos etiquetados por categoría, un fine-tuning de RoBERTuito basta. Con menos, generaliza mal.
 
+### Clasificador de tema por reglas (provisional, ya construido)
+
+`nlp/rules_classifier.py` — diccionario de keywords en español peruano por categoría +
+matching por regex con normalización de acentos (reusa `normalize_text` de
+`normalize/dedup.py`). No reemplaza el fine-tuning; sirve para (a) tener `items.tema`
+poblado ya, y (b) generar candidatos etiquetados para que un humano arme el dataset real
+de entrenamiento — los items sin match quedan con `tema = NULL`, sin forzar clasificación.
+
+Corrida real sobre los 484 items del corpus: 130 clasificados (354 sin match).
+Conteo por categoría: publicidad_reputacion 32, facturacion_cobros 31,
+averia_caida_servicio 25, precio_planes 15, atencion_cliente 12, instalacion 8,
+privacidad_datos 4, cobertura 3. Ninguna categoría quedó en cero, aunque cobertura y
+privacidad_datos tienen volumen bajo — esperable dado que Google Play/News no son donde
+más aparece ese tipo de queja. `precio_planes` mezcla quejas de precio con noticias de
+negocio (adquisiciones, contratos mayoristas); es aceptable como primer corte pero conviene
+revisarlo antes de usarlo como dataset de entrenamiento definitivo.
+
 ### Ajustes estadísticos por baja frecuencia
 
 Con fuentes de bajo volumen el z-score gaussiano falla: con media de 0,4 eventos por día, cualquier día con 3 eventos parece anomalía extrema aunque sea azar.
@@ -350,6 +367,26 @@ Si el tiempo aprieta, los conteos de keywords de Maps ("señal 19", "denunciar 1
 - Reddit devuelve 403 desde IPs de datacenter (confirmado también en este entorno con el endpoint anónimo `.json`). Usa la API OAuth oficial
 - Google News RSS necesita `hl=es-419&gl=PE&ceid=PE:es-419` para resultados peruanos
 - Scrapers de GitHub que se evaluaron: `gaspa93/googlemaps-scraper` (520★), `egbertbouman/youtube-comment-downloader` (1254★), `Mohammedcha/gplay-scraper` (308★), `AgiMaulana/Instagram-Comments-Scraper` (177★), `mohdtalal3/facebook_post_comment_scraper` (40★). Los de Facebook e Instagram son los más frágiles
+
+### X / Twitter: por qué no hay atajo gratuito
+
+Se evaluaron todas las vías sin usar una cuenta real (decisión explícita: no arriesgar una
+cuenta de X todavía). Ninguna sirve:
+
+- API oficial v2 sin autenticación: 401
+- API oficial v2, tier gratuito: **descontinuado desde febrero 2026** para desarrolladores
+  nuevos. El modelo actual es pay-per-use desde el primer request ($0.005 por lectura, $0.015-0.20
+  por post creado), sin capa gratuita
+- Nitter (instancias públicas): 3 de 4 conocidas caídas (`nitter.net`, `nitter.poast.org`,
+  `nitter.privacydev.net`). La única viva (`xcancel.com`) tiene antibot/captcha activo — mismo
+  patrón de bloqueo que TikTok y Google Maps, no hay forma de pasarlo sin sesión/navegador real
+- twikit: es la única vía funcional conocida, pero **requiere cuenta real logueada** y no se
+  probó por la misma razón de arriba
+
+Conclusión: X sigue exactamente en la categoría que ya tenía antes de esta revisión — "pulso,
+riesgo ToS" — no bajó de categoría ni apareció una alternativa gratuita. Si en algún momento se
+decide asumir el riesgo, twikit sigue siendo el camino, con las mismas trampas ya documentadas
+abajo.
 
 ### Riesgo de ToS
 
