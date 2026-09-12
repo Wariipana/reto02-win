@@ -569,6 +569,32 @@ de datos", "actor de amenaza"), y `FUENTES_PRENSA` ahora incluye `"twitter"` —
 real de prensa/threat-intel además de quejas directas de usuarios, a diferencia de cuando sólo
 se consideraba RSS de medios tradicionales.
 
+### Dos bugs reales encontrados por revisión externa (otro agente), ambos corregidos
+
+**1. Las alertas de Google Trends quedaban descartadas en silencio.** `ingest/trends.py`
+guardaba en `trends_series.marca` la keyword completa de búsqueda de pytrends ("WIN internet",
+"Movistar Peru", "Claro Peru"), mientras que `items.marca` usa el vocabulario normalizado
+("WIN", "Movistar", "Claro", "Entel" — ver `_MARCA_POR_CUENTA` en `ingest/tiktok.py`). Al
+agregar `generar_alertas(solo_marca="WIN")` (ver corrección del bug de TikTok más arriba),
+`"WIN internet" == "WIN"` es falso — las tres tarjetas de Trends existían pero ninguna pasaba el
+filtro, y nada fallaba de forma visible porque son tablas separadas. Se corrigió agregando
+`_normalizar_marca()` en `trends.py` (mismo patrón que TikTok): pytrends sigue buscando con la
+keyword completa, pero lo que se persiste en `trends_series.marca` ya es "WIN"/"Movistar"/"Claro".
+Los 507 puntos ya existentes se repararon con `UPDATE`. Verificado: antes del fix, 0 de 3
+tarjetas de Trends pasaban `solo_marca="WIN"`; después, la tarjeta de WIN sí aparece.
+
+**2. El guard de sentimiento del escalamiento directo tenía un hueco con `NULL`.** La condición
+`sentimiento != "NEG"` en Python evalúa a `True` cuando `sentimiento` es `None` — y es `None`
+para cualquier item recién ingerido que aún no pasó por `enrich.py` (hasta ~30 min de retraso
+según el cron). Un mensaje real como "voy a denunciar a WIN en Indecopi", apenas ingerido,
+quedaba descartado del escalamiento directo hasta que la Capa 3 corriera — contradice
+exactamente el principio de que el escalamiento "dispara alerta por el hecho de existir", sin
+depender en silencio de que otra capa ya haya procesado el item. Corregido a
+`sentimiento not in (None, "NEG")`: un item sin enriquecer todavía sí escala (no se bloquea por
+falta de dato), y sólo se descarta cuando se **sabe con certeza** que el tono es positivo/neutral
+(el caso real que motivó el guard — un post de marketing con "según Osiptel" en tono elogioso,
+`sentimiento=POS` confirmado — sigue correctamente excluido).
+
 ---
 
 ## Validación retrospectiva

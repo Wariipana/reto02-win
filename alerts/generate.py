@@ -244,7 +244,17 @@ def _tarjetas_por_escalamiento_directo(conn):
         # un incidente real — se vio en la práctica con un post promocional
         # de WIN que mencionaba "según Osiptel" en tono elogioso. privacidad_datos
         # sigue escalando sin importar el tono: es grave incluso neutral.
-        if tiene_senal and not es_tema_critico and sentimiento != "NEG":
+        #
+        # sentimiento es NULL hasta que enrich.py corre (hasta ~30 min de
+        # retraso en cron, ver cron/README.md). "sentimiento != 'NEG'" en
+        # Python es True cuando sentimiento es None, así que un item recién
+        # ingerido y aún sin enriquecer quedaba descartado en silencio —
+        # contradice el principio de que el escalamiento directo "dispara
+        # alerta por el hecho de existir", sin depender de que otra capa ya
+        # haya corrido (encontrado por revisión externa). Sólo bloqueamos
+        # cuando SABEMOS que el tono es positivo/neutral, no cuando aún no
+        # se sabe.
+        if tiene_senal and not es_tema_critico and sentimiento not in (None, "NEG"):
             continue
 
         ruta = enrutar(tema=tema, texto=texto, fuente=fuente, items_relacionados=[])
