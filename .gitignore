@@ -9,3 +9,4 @@ scratchpad/
 *.log
 logfile
 logs/
+.sessions/

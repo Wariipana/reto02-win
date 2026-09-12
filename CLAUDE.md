@@ -68,6 +68,13 @@ Todo lo de esta tabla fue medido ejecutando código, no estimado.
 - Una vez se tiene el ID de un post (por scroll con sesión, o indexado en Google), el **detalle SÍ es accesible sin sesión**: la página de video individual trae los datos completos server-side en `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__">` → `__DEFAULT_SCOPE__["webapp.video-detail"].itemInfo.itemStruct` (incluye `desc`, `createTime`, `stats.diggCount/shareCount/commentCount/playCount`). Esto evade el WAF (Slardar) que sí bloquea peticiones HTTP planas (confirmado: `curl` da un HTML de challenge de 1.4KB; Playwright con user-agent de escritorio carga la página completa, ~500KB)
 - Google indexa videos individuales de esta cuenta (`site:tiktok.com/@win_internet/video`), lo que da una vía de descubrimiento de IDs sin sesión, pero incompleta y con "dark posts" (anuncios pagados no orgánicos) mezclados — se identifican porque el `webapp.video-detail` devuelve `statusMsg: "item is dark post"` en vez de `itemInfo`
 - Implicación de arquitectura: **enumerar posts nuevos requiere una sesión de cuenta persistente** (cookies renovadas periódicamente); **obtener detalle/comentarios de un post ya conocido no requiere sesión**
+- `ingest/save_session.py` resuelve esto sin que el asistente extraiga cookies directamente
+  (esa acción está bloqueada por diseño): lanza un Chromium headed visible en el escritorio/VNC
+  del usuario, el usuario inicia sesión manualmente ahí, y el propio Playwright serializa
+  cookies+localStorage a `.sessions/<sitio>_state.json` (fuera de git) una vez detecta que la
+  URL salió de `/login`. Ese archivo se puede pasar luego como `storage_state` a un
+  `browser.new_context()` para automatizar el scroll de descubrimiento sin pedir login cada vez.
+  Mismo mecanismo sirve para X/twitter si se decide usar una cuenta real más adelante
 
 **Discord** (servidor oficial "WIN server", `discord.com/invite/gamer-win`) — hallazgo del
 usuario a partir de las ponencias del hackathon: WIN tiene un servidor propio para su línea de
@@ -265,6 +272,19 @@ Modelos verificados como disponibles en HuggingFace:
 
 Con 150-250 ejemplos etiquetados por categoría, un fine-tuning de RoBERTuito basta. Con menos, generaliza mal.
 
+### Capa 4: detección de anomalías (ya construida, limitada por profundidad de datos)
+
+`anomaly/detect.py` implementa los dos modelos de la sección "Ajustes estadísticos por baja
+frecuencia": banda de baseline móvil (gaussiano) sobre la serie horaria de Trends, y modelo de
+conteos (Poisson) sobre `(fuente, tema, día)` para los items de texto. Corrida real: Trends
+funciona de inmediato (30 días de histórico horario ya acumulados); el modelo de conteos por
+tema **no genera resultados todavía** porque el corpus actual mezcla reseñas históricas (desde
+2024) con el flujo reciente, y el filtro de baseline exige items dentro de los últimos 30 días
+— la mayoría de lo clasificado por `rules_classifier.py` queda fuera de esa ventana. Esto no es
+un bug: es evidencia de que la Capa 4 sobre texto necesita que la ingesta continua (cron) corra
+varias semanas para acumular suficiente profundidad reciente antes de ser útil. Revisar de
+nuevo una vez la cronología de datos avance.
+
 ### Clasificador de tema por reglas (provisional, ya construido)
 
 `nlp/rules_classifier.py` — diccionario de keywords en español peruano por categoría +
@@ -363,6 +383,24 @@ Recomendación: híbrido. Backend Python a Postgres, presentación en React con 
 Un jefe de área no vive en un dashboard: vive en Slack, Teams o el correo. Considera que el entregable estrella sea **la alerta misma**, maquetada como llegaría de verdad: mensaje de Slack con titular, volumen, mini-gráfica, tres citas reales y botón de escalamiento.
 
 El dashboard es donde investigas después. La alerta es donde actúas el mismo día.
+
+### Capa 5 (ya construida): enrutamiento + tarjeta de alerta
+
+- `alerts/routing.py` — matriz tema → área/urgencia de la tabla de arriba, con las señales de
+  escalamiento automático (Indecopi, OSIPTEL, "voy a denunciar", etc.) y el criterio de cluster
+  geográfico para avería/caída (placeholder simple: 3+ items relacionados; pendiente refinar con
+  NER de geo real, ver advertencia del mapa de calor)
+- `alerts/generate.py` — arma la `TarjetaAlerta` completa a partir de las anomalías de la Capa 4:
+  titular en lenguaje humano, volumen y % de cambio vs. baseline, ventana temporal, hasta 3
+  ejemplos reales con texto/url/fecha, y el área+urgencia ya enrutados
+- `alerts/render_slack.py` — convierte la tarjeta en el payload real de Slack Block Kit
+  (header, campos, sparkline ASCII, citas con link al original, botones "Esto es ruido" /
+  "Ver en el tablero"). El botón de ruido ya tiene a dónde escribir: `items.es_ruido` existe en
+  el esquema desde el principio. **No incluye el envío real** (falta la URL del webhook de
+  Slack, que debe proveer WIN)
+- Corrida real de punta a punta (Trends → detección → tarjeta → JSON de Slack) verificada, sin
+  anomalías reales todavía porque no ha pasado suficiente tiempo de cron corriendo — mismo
+  motivo que la limitación de la Capa 4 sobre conteo por tema
 
 ---
 
