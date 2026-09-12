@@ -39,6 +39,7 @@ Todo lo de esta tabla fue medido ejecutando código, no estimado.
 | Fuente | Granularidad | Volumen medido | Semanas vacías /26 | Veredicto |
 |---|---|---|---|---|
 | **Google Trends** | Horaria | 169 puntos en 7 días, 98 no-cero | **0** | Pulso primario |
+| **Discord (WIN server, #general)** | Por mensaje | sin medir formalmente, evidencia cualitativa fuerte (ver detalle) | no medido | Pulso + texto, quejas en tiempo real, requiere sesión |
 | **TikTok (@win_internet)** | Por post | 93 posts en 180d (0,52/día), acelerando (4-7/sem ago-sep vs 1-4/sem mar-may) | **0** | Pulso + texto, requiere sesión para enumerar |
 | **X / Twitter (twikit)** | Por post | sin medir (ver detalle) | — | Pulso, riesgo ToS — sin alternativa gratuita/segura |
 | Google Play | Diaria | 67 en 180d (0,39/día) | 3 | Confirmación |
@@ -67,6 +68,55 @@ Todo lo de esta tabla fue medido ejecutando código, no estimado.
 - Una vez se tiene el ID de un post (por scroll con sesión, o indexado en Google), el **detalle SÍ es accesible sin sesión**: la página de video individual trae los datos completos server-side en `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__">` → `__DEFAULT_SCOPE__["webapp.video-detail"].itemInfo.itemStruct` (incluye `desc`, `createTime`, `stats.diggCount/shareCount/commentCount/playCount`). Esto evade el WAF (Slardar) que sí bloquea peticiones HTTP planas (confirmado: `curl` da un HTML de challenge de 1.4KB; Playwright con user-agent de escritorio carga la página completa, ~500KB)
 - Google indexa videos individuales de esta cuenta (`site:tiktok.com/@win_internet/video`), lo que da una vía de descubrimiento de IDs sin sesión, pero incompleta y con "dark posts" (anuncios pagados no orgánicos) mezclados — se identifican porque el `webapp.video-detail` devuelve `statusMsg: "item is dark post"` en vez de `itemInfo`
 - Implicación de arquitectura: **enumerar posts nuevos requiere una sesión de cuenta persistente** (cookies renovadas periódicamente); **obtener detalle/comentarios de un post ya conocido no requiere sesión**
+
+**Discord** (servidor oficial "WIN server", `discord.com/invite/gamer-win`) — hallazgo del
+usuario a partir de las ponencias del hackathon: WIN tiene un servidor propio para su línea de
+planes gamer, con un canal de soporte técnico. Verificado real y explorado con una cuenta de
+usuario normal (con permiso explícito del usuario, quien confirmó autorización de WIN para el
+hackathon — ver nota de ToS abajo antes de construir nada más aquí).
+
+- Servidor real, verificado vía API pública de invitación (`GET /api/v10/invites/gamer-win`, sin
+  auth): **5.849 miembros, ~1.000-1.034 en línea**. Descripción oficial del guild: *"Servidor
+  oficial de los gamers de win, disfruta con otros winners o reporta inconvenientes en tu
+  servicio"*. Tiene `WinBot`, un bot propio de WIN para onboarding/tickets de soporte
+- Estructura de canales vista como miembro normal (no admin): `bienvenidas`, `enlaces-utiles`
+  (bloqueado para no-clientes), `actualizaciones-del-servidor`, `blog`, `registro-clientes`,
+  `ayuda`, `general`, `off-topic`. Sólo 8 canales visibles — el servidor es mucho más grande
+  puertas adentro (probablemente tiene canales de voz y quizá texto adicionales sólo para
+  clientes verificados, y posiblemente tickets privados 1-a-1 vía `WinBot`)
+- `#ayuda` es informativo/anuncios (explica el sistema de tickets), **no** es el canal donde
+  los clientes escriben sus quejas libremente — los tickets de soporte real probablemente son
+  canales/hilos privados por usuario, invisibles para un miembro normal y para el propio dueño
+  del hackathon (confirmado: quien organiza no tiene acceso admin al servidor)
+- **`#general` sí es chat libre en tiempo real** (`¡En este canal puedes hablar con cualquier
+  persona!`) y ahí sí aparecen quejas técnicas espontáneas con timestamp al minuto. Durante la
+  exploración manual (12 de septiembre de 2026) se observó, en vivo, un patrón consistente con
+  una caída de servicio real siendo reportada por varios usuarios de forma casi simultánea —
+  exactamente el tipo de señal temprana que el reto busca. Revisando el historial hacia atrás
+  (sesiones de días previos) se confirmó actividad recurrente con contenido técnico relevante
+  (quejas de velocidad, hardware/cableado, comparación con otros ISP) y densidad de mensajes
+  aparentemente alta. No se guardó ni se transcribió contenido textual de mensajes de terceros
+  en este repositorio — la verificación fue visual, vía navegador, sin persistir datos
+- **No se hizo medición cuantitativa formal** (no se contaron mensajes/día ni semanas vacías,
+  a diferencia de las demás fuentes) — sólo exploración manual vía navegador para confirmar
+  viabilidad. Pendiente si se decide construir un extractor real
+- El widget público de Discord (`GET /api/guilds/<id>/widget.json`, sin auth) sólo expone
+  canales de **voz**, no da mensajes ni canales de texto — no sirve como atajo sin sesión
+
+*Riesgo de ToS y cómo se resolvió aquí*: Discord prohíbe explícitamente el scraping sin
+consentimiento por escrito, y hay precedente reciente (investigadores de UFMG, Brasil)
+donde Discord calificó como violación de sus políticas el patrón "cuenta de usuario se une a
+un servidor ampliamente descubrible y extrae mensajes", incluso siendo investigación académica
+anonimizada. La vía limpia es un bot de aplicación invitado por un administrador del servidor
+(WIN), pero se confirmó que quienes dirigen el hackathon no tienen ese acceso hoy. El usuario
+confirmó que **el hackathon cuenta con autorización de WIN**, lo cual cambia el análisis de
+riesgo/consentimiento frente a TikTok/X (ahí el riesgo era sólo de la cuenta usada; acá hay
+además datos de terceros/clientes de WIN de por medio). Decisión tomada: explorar manualmente
+con una cuenta de usuario real como miembro normal (sin bot automatizado, sin descarga masiva)
+para confirmar viabilidad, sin construir todavía un extractor persistente. La cuenta se dejó
+unida al servidor por si se retoma. **Antes de automatizar la extracción, conviene conseguir el
+acceso admin real (vía los organizadores del hackathon contactando a WIN) para hacerlo con un
+bot de aplicación propiamente autorizado, en vez de seguir con una cuenta de usuario.**
 
 **Google Play** (`google-play-scraper`) — app `com.win.miwin_app`
 - 3,03★ de 572 ratings, 359 reseñas con texto
@@ -109,6 +159,7 @@ Todo lo de esta tabla fue medido ejecutando código, no estimado.
 
 ### Candidatos pendientes
 
+- **Discord (WIN server)** — confirmado real y con quejas espontáneas en `#general` (ver detalle arriba). Pendiente: medición cuantitativa formal y decisión de vía de acceso (bot admin autorizado por WIN vs. seguir con cuenta de usuario)
 - **Reddit r/PERU** — API OAuth oficial, gratuita para volumen bajo. Requiere crear una "script app" en `reddit.com/prefs/apps` (necesita cuenta y login del usuario). Anonymous `.json` endpoint da 403 desde este entorno (bloqueo por IP de datacenter, igual que Maps/TikTok)
 - **Facebook** — la página @InternetWIN tiene actividad diaria. Probablemente la fuente de mayor volumen después de X. Requiere scraper, es lo más frágil. No probado aún
 - Foros peruanos de tecnología / grupos públicos de Telegram
