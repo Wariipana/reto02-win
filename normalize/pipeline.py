@@ -159,6 +159,20 @@ def run_tiktok(conn, idx: DedupIndex, urls_file: str = None):
     log.info("[tiktok] %d recolectados, %d tras dedup, %d insertados", len(items), len(kept), n)
 
 
+def run_twitter(conn, idx: DedupIndex):
+    import twitter
+
+    try:
+        items = twitter.fetch_all_queries()
+    except FileNotFoundError as e:
+        log.warning("[twitter] %s", e)
+        return
+
+    kept = _filter_new(items, idx)
+    n = _insert_items(conn, kept)
+    log.info("[twitter] %d recolectados, %d tras dedup, %d insertados", len(items), len(kept), n)
+
+
 def _filter_new(items, idx: DedupIndex):
     """Descarta spam/dedup dentro del batch (idx.add_and_check) y además lo que
     ya existía en Postgres de corridas anteriores (idx.seen_hashes_persisted)."""
@@ -193,7 +207,7 @@ def main():
     )
     parser.add_argument(
         "--only",
-        choices=["trends", "news", "play", "tiktok"],
+        choices=["trends", "news", "play", "tiktok", "twitter"],
         help="correr sólo esta fuente (para invocar desde cron con su propio intervalo)",
     )
     parser.add_argument("--skip-trends", action="store_true")
@@ -219,6 +233,8 @@ def main():
         _safe("tiktok", lambda: run_tiktok(conn, idx, args.tiktok))
     if args.discord:
         _safe("discord", lambda: run_discord(conn, idx, args.discord))
+    if args.only == "twitter":
+        _safe("twitter", lambda: run_twitter(conn, idx))
 
     conn.close()
 

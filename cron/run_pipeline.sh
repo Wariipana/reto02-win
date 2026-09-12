@@ -7,7 +7,7 @@ set -euo pipefail
 PROJECT_DIR="/config/Projects/reto02-win"
 PG_BIN="/usr/lib/postgresql/18/bin"
 PG_DATA="$PROJECT_DIR/.pgdata/data"
-FUENTE="${1:?uso: run_pipeline.sh <trends|news|play|tiktok|enrich|rules|alerts>}"
+FUENTE="${1:?uso: run_pipeline.sh <trends|news|play|tiktok|twitter|enrich|rules|alerts>}"
 PY_PLAYWRIGHT="/lsiopy/bin/python3"  # único intérprete con playwright instalado (ver db/README.md)
 
 # La instancia de Postgres del proyecto no es un servicio systemd (se levantó
@@ -34,6 +34,10 @@ case "$FUENTE" in
     tiktok)
         cd "$PROJECT_DIR/normalize"
         exec "$PY_PLAYWRIGHT" pipeline.py --only tiktok
+        ;;
+    twitter)
+        cd "$PROJECT_DIR/normalize"
+        exec "$PY_PLAYWRIGHT" pipeline.py --only twitter
         ;;
     *)
         cd "$PROJECT_DIR/normalize"

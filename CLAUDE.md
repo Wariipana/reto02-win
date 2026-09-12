@@ -46,7 +46,7 @@ Todo lo de esta tabla fue medido ejecutando código, no estimado.
 | **Google Trends** | Horaria | 169 puntos en 7 días, 98 no-cero | **0** | Pulso primario |
 | **Discord (WIN server, #general)** | Por mensaje | 31 mensajes reales extraídos (8-12 sep 2026), sin medición formal de continuidad | no medido | Pulso + texto, extracción manual periódica (no automatizable por ToS) |
 | **TikTok (@win_internet + competencia)** | Por post | 100 items en base (95 nuevos en última corrida automatizada) | **0** (medición previa) | Pulso + texto, **ahora automatizable** con sesión de cookies + captcha resuelto una vez |
-| **X / Twitter (twikit)** | Por post | sin medir (ver detalle) | — | Pulso, riesgo ToS — sin alternativa gratuita/segura |
+| **X / Twitter** | Por tuit | 41 tuits en base (primera corrida), rango 2017-2025 | no medido | Pulso + texto + escalamiento, **automatizable** con sesión de cookies, sin captcha visto |
 | Google Play | Diaria | 67 en 180d (0,39/día) | 3 | Confirmación |
 | Google Maps | Por reseña | 683 reseñas ficha principal | no medible | Confirmación, frágil |
 | Google News RSS | Por nota | 15 en 180d | 13 | Escalamiento |
@@ -587,10 +587,44 @@ cuenta de X todavía). Ninguna sirve:
 - twikit: es la única vía funcional conocida, pero **requiere cuenta real logueada** y no se
   probó por la misma razón de arriba
 
-Conclusión: X sigue exactamente en la categoría que ya tenía antes de esta revisión — "pulso,
-riesgo ToS" — no bajó de categoría ni apareció una alternativa gratuita. Si en algún momento se
-decide asumir el riesgo, twikit sigue siendo el camino, con las mismas trampas ya documentadas
-abajo.
+Conclusión de esa primera revisión: X seguía en la categoría "pulso, riesgo ToS" sin alternativa
+gratuita, mientras no se usara una cuenta real.
+
+### X / Twitter: resuelto después, vía cookies exportadas manualmente (mismo patrón que TikTok)
+
+El usuario exportó las cookies de su sesión de X con una extensión de navegador y las compartió
+directamente — mismo mecanismo y mismo aviso de seguridad que con TikTok (ver esa sección):
+las cookies quedaron expuestas en texto plano en la conversación, decisión explícita del usuario
+no rotarlas. `ingest/convert_cookies.py` las convirtió a `storage_state`, guardado en
+`.sessions/twitter_state.json` (permisos 600, fuera de git).
+
+A diferencia de TikTok, **la sesión de X no mostró ningún captcha ni verificación anti-bot** en
+la primera carga headless — ni en `/home` ni en `/search`. No se necesitó el paso de "resolver
+captcha en Chromium visible" que sí hizo falta para TikTok.
+
+`ingest/twitter.py` hace scraping vía Playwright: navega a `x.com/search?q=<query>&f=live`,
+hace scroll, y parsea el DOM de cada `<article>` (X no tiene un endpoint JSON público accesible
+sin backend propio, a diferencia del SSR de TikTok). El parseo requirió una corrección real:
+la primera versión cortaba el cuerpo del tuit en la primera mención a otra cuenta (`@usuario` a
+mitad de texto), perdiendo el resto del mensaje — se corrigió filtrando líneas de metadata
+(handle, fecha, métricas) por patrón en vez de por posición, y reconstruyendo el cuerpo con todo
+lo que queda.
+
+Queries monitoreadas: `"WIN internet Peru"`, `"WIN fibra Peru"`, `"WIN OSIPTEL"`,
+`"Wi-Net Telecom"`. Corrida real: 42 tuits recolectados (41 tras dedup), rango 2017-2025. Ya
+apareció señal de alto valor en la primera prueba: una queja real citando directamente a
+`@IndecopiOficial` y `@OSIPTEL` sobre una caída masiva (dispara el escalamiento automático de
+`alerts/routing.py`), y una queja con distrito mencionado ("sigo sin internet aquí en
+Chorrillos"). También apareció una alerta de una cuenta de threat-intel sobre una posible
+filtración de datos de **"Win Empresas"** — nombre similar pero **no verificado si es la misma
+WIN (WI-NET TELECOM) del proyecto o una entidad de negocio B2B separada**; no se asumió que son
+la misma empresa, queda pendiente de verificar antes de tratarlo como incidente de la marca.
+
+Riesgo de ToS: mismo tipo de riesgo que TikTok (scraping vía navegador automatizado con una
+cuenta real, contra los términos de X) — se acepta el mismo nivel de riesgo ya asumido ahí, no
+uno nuevo. `run_twitter()` en `normalize/pipeline.py` está listo para cron pero **no se agregó
+todavía** (ver `cron/README.md`) — pendiente la misma confirmación explícita que se pidió para
+automatizar TikTok.
 
 ### Riesgo de ToS
 
