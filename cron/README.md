@@ -8,6 +8,7 @@
 | Google News + prensa | Sí | cada 30 min |
 | Google Play | Sí | cada 30 min |
 | TikTok | **No** — manual | requiere sesión de navegador para descubrir posts nuevos (ver `ingest/tiktok.py`, notas al final del archivo, y CLAUDE.md sección "TikTok: cómo se resolvió el bloqueo del WAF") |
+| Enriquecimiento NLP (Capa 3: sentimiento + embeddings) | Sí | minutos 5 y 35 (5 min después del ciclo de ingesta de 30 min) |
 
 Trends corre más seguido porque su propia granularidad es horaria — cada 15 min
 sólo re-consulta la ventana de 7 días, upsert por `(marca, fecha, granularidad)`
@@ -18,9 +19,10 @@ evita duplicar puntos.
 `crontab -l` tiene, además de lo que ya hubiera en el sistema:
 
 ```
-*/15 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh trends >> .../logs/cron.log 2>&1
-*/30 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh news   >> .../logs/cron.log 2>&1
-*/30 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh play   >> .../logs/cron.log 2>&1
+*/15 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh trends  >> .../logs/cron.log 2>&1
+*/30 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh news    >> .../logs/cron.log 2>&1
+*/30 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh play    >> .../logs/cron.log 2>&1
+5,35 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh enrich  >> .../logs/cron.log 2>&1
 ```
 
 `run_pipeline.sh` es el único punto de entrada que cron invoca: fija rutas

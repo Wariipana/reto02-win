@@ -3,6 +3,7 @@ instancias del sistema/DBEngine). Ver README para cómo levantarla/pararla."""
 import os
 
 import psycopg
+from pgvector.psycopg import register_vector
 
 DEFAULT_DSN = (
     "host=/config/Projects/reto02-win/.pgdata/run "
@@ -14,4 +15,6 @@ DEFAULT_DSN = (
 
 def get_conn():
     dsn = os.environ.get("RETO02_DSN", DEFAULT_DSN)
-    return psycopg.connect(dsn)
+    conn = psycopg.connect(dsn)
+    register_vector(conn)
+    return conn
