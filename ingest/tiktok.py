@@ -19,6 +19,23 @@ from schema import Item, hash_author
 
 CUENTAS = ["win_internet", "movistarperu_oficial", "entel_peru", "claro_peru"]
 
+_MARCA_POR_CUENTA = {
+    "win_internet": "WIN",
+    "movistarperu_oficial": "Movistar",
+    "entel_peru": "Entel",
+    "claro_peru": "Claro",
+}
+
+
+def _marca_desde_handle(handle: str) -> str:
+    """Deriva la marca real del autor del post — sin esto, todos los items de
+    TikTok quedaban con marca='WIN' (el default de schema.Item) sin importar
+    si el post real era de una cuenta de la competencia, lo cual mezclaba
+    contenido de Movistar/Claro/Entel en el enrutamiento y las tarjetas de
+    alerta de WIN (encontrado revisando el tablero de triaje: una tarjeta de
+    'precio_planes' mostraba como ejemplo un post de @movistarperu_oficial)."""
+    return _MARCA_POR_CUENTA.get(handle, handle or "desconocida")
+
 SESSION_STATE_PATH = Path(__file__).resolve().parent.parent / ".sessions" / "tiktok_state.json"
 
 _UA = (
@@ -69,12 +86,14 @@ def fetch_video_detail(video_url, page=None):
             else ""
         )
         author = item.get("author", {})
+        handle = author.get("uniqueId", "")
         return Item(
             fuente="tiktok",
+            marca=_marca_desde_handle(handle),
             texto=item.get("desc", ""),
             fecha=fecha,
             url=video_url,
-            autor_hash=hash_author(author.get("uniqueId", "")),
+            autor_hash=hash_author(handle),
             engagement={
                 "diggCount": stats.get("diggCount", 0),
                 "shareCount": stats.get("shareCount", 0),

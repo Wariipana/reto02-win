@@ -118,24 +118,29 @@ def _titular(anomalia: Anomalia) -> str:
     if anomalia.tipo == "trends":
         direccion = "Pico" if anomalia.z_score > 0 else "Caída"
         return f"{direccion} de búsquedas de {anomalia.clave}"
-    fuente, tema = anomalia.clave.split(":", 1)
+    fuente, marca, tema = anomalia.clave.split(":", 2)
     base = TITULOS_POR_TEMA.get(tema, f"Pico de menciones de {tema}")
-    return f"{base} ({fuente})"
+    return f"{base} ({fuente}, {marca})"
 
 
-def _items_del_dia(conn, fuente: str, tema: str, fecha):
-    """Todos los items de (fuente, tema, fecha) — no sólo una muestra — porque
-    el criterio de cluster geográfico (ver alerts/routing.py) necesita ver el
-    conjunto completo para contar zonas distintas, no una submuestra de 3."""
+def _items_del_dia(conn, fuente: str, marca: str, tema: str, fecha):
+    """Todos los items de (fuente, marca, tema, fecha) — no sólo una muestra —
+    porque el criterio de cluster geográfico (ver alerts/routing.py) necesita
+    ver el conjunto completo para contar zonas distintas, no una submuestra
+    de 3. Filtrar también por marca es necesario: una misma "fuente" (ej.
+    tiktok) mezcla WIN con Movistar/Claro/Entel — sin este filtro, una tarjeta
+    de WIN podía mostrar como ejemplo un post real de la competencia (bug
+    encontrado revisando el tablero: 'precio_planes (tiktok)' mostraba un post
+    de @movistarperu_oficial porque marca no se usaba para agrupar)."""
     with conn.cursor() as cur:
         cur.execute(
             """
             SELECT texto, url, fuente, fecha, geo
             FROM items
-            WHERE fuente = %s AND tema = %s AND fecha::date = %s
+            WHERE fuente = %s AND marca = %s AND tema = %s AND fecha::date = %s
             ORDER BY fecha DESC
             """,
-            (fuente, tema, fecha),
+            (fuente, marca, tema, fecha),
         )
         rows = cur.fetchall()
     return [
@@ -185,8 +190,8 @@ def construir_tarjeta(conn, anomalia: Anomalia) -> TarjetaAlerta:
             serie_sparkline=_serie_sparkline_trends(conn, anomalia.clave),
         )
 
-    fuente, tema = anomalia.clave.split(":", 1)
-    items_dia = _items_del_dia(conn, fuente, tema, anomalia.fecha[:10])
+    fuente, marca, tema = anomalia.clave.split(":", 2)
+    items_dia = _items_del_dia(conn, fuente, marca, tema, anomalia.fecha[:10])
     ejemplos = items_dia[:3]
     ruta = enrutar(
         tema=tema,
@@ -196,7 +201,7 @@ def construir_tarjeta(conn, anomalia: Anomalia) -> TarjetaAlerta:
     )
     return TarjetaAlerta(
         titular=_titular(anomalia),
-        marca="WIN",
+        marca=marca,
         tema=tema,
         fuente_principal=fuente,
         volumen=int(anomalia.valor_observado),
@@ -221,7 +226,7 @@ def _tarjetas_por_escalamiento_directo(conn):
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT id, texto, url, fuente, fecha, tema, geo
+            SELECT id, texto, url, fuente, marca, fecha, tema, geo, sentimiento
             FROM items
             WHERE tema IS NOT NULL AND texto <> '' AND es_ruido = false
             """
@@ -229,11 +234,17 @@ def _tarjetas_por_escalamiento_directo(conn):
         rows = cur.fetchall()
 
     tarjetas = []
-    for item_id, texto, url, fuente, fecha, tema, geo in rows:
+    for item_id, texto, url, fuente, marca, fecha, tema, geo, sentimiento in rows:
         texto_low = texto.lower()
         es_tema_critico = tema in TEMAS_ESCALAMIENTO_DIRECTO
         tiene_senal = any(s in texto_low for s in SENALES_ESCALAMIENTO)
         if not es_tema_critico and not tiene_senal:
+            continue
+        # una señal léxica (ej. "osiptel") en un post de marca positivo no es
+        # un incidente real — se vio en la práctica con un post promocional
+        # de WIN que mencionaba "según Osiptel" en tono elogioso. privacidad_datos
+        # sigue escalando sin importar el tono: es grave incluso neutral.
+        if tiene_senal and not es_tema_critico and sentimiento != "NEG":
             continue
 
         ruta = enrutar(tema=tema, texto=texto, fuente=fuente, items_relacionados=[])
@@ -241,7 +252,7 @@ def _tarjetas_por_escalamiento_directo(conn):
         tarjetas.append(
             TarjetaAlerta(
                 titular=f"{TITULOS_POR_TEMA.get(tema, f'Mención de {tema}')} — escalamiento directo",
-                marca="WIN",
+                marca=marca,
                 tema=tema,
                 fuente_principal=fuente,
                 volumen=1,
@@ -259,7 +270,12 @@ def _tarjetas_por_escalamiento_directo(conn):
     return tarjetas
 
 
-def generar_alertas(conn=None, solo_relevantes=True):
+def generar_alertas(conn=None, solo_relevantes=True, solo_marca="WIN"):
+    """solo_marca filtra las tarjetas devueltas a una marca (default "WIN"):
+    el tablero de triaje de WIN no debe alertar sobre quejas de Movistar/
+    Claro/Entel, aunque se monitoreen para tener línea base comparativa (ver
+    CLAUDE.md, "Monitorear la categoría, no sólo WIN"). Pasar None para ver
+    todas las marcas (útil para depuración o para la comparación sectorial)."""
     own_conn = conn is None
     conn = conn or get_conn()
     try:
@@ -268,7 +284,10 @@ def generar_alertas(conn=None, solo_relevantes=True):
             anomalias = [a for a in anomalias if a.severidad != "normal"]
         tarjetas_por_conteo = [construir_tarjeta(conn, a) for a in anomalias]
         tarjetas_escalamiento = _tarjetas_por_escalamiento_directo(conn)
-        return tarjetas_por_conteo + tarjetas_escalamiento
+        tarjetas = tarjetas_por_conteo + tarjetas_escalamiento
+        if solo_marca:
+            tarjetas = [t for t in tarjetas if t.marca == solo_marca]
+        return tarjetas
     finally:
         if own_conn:
             conn.close()

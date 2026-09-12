@@ -111,12 +111,12 @@ def detectar_anomalias_conteo(conn, ventana_baseline_dias=BASELINE_DIAS, solo_ul
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT fuente, tema, fecha::date as dia, count(*) as n
+            SELECT fuente, marca, tema, fecha::date as dia, count(*) as n
             FROM items
             WHERE tema IS NOT NULL
               AND fecha >= now() - (%s || ' days')::interval
-            GROUP BY fuente, tema, dia
-            ORDER BY fuente, tema, dia
+            GROUP BY fuente, marca, tema, dia
+            ORDER BY fuente, marca, tema, dia
             """,
             (ventana_baseline_dias,),
         )
@@ -125,11 +125,11 @@ def detectar_anomalias_conteo(conn, ventana_baseline_dias=BASELINE_DIAS, solo_ul
     from collections import defaultdict
 
     series = defaultdict(list)
-    for fuente, tema, dia, n in rows:
-        series[(fuente, tema)].append((dia, n))
+    for fuente, marca, tema, dia, n in rows:
+        series[(fuente, marca, tema)].append((dia, n))
 
     resultados = []
-    for (fuente, tema), puntos in series.items():
+    for (fuente, marca, tema), puntos in series.items():
         if len(puntos) < MIN_DIAS_CONFIANZA_BAJA:
             continue  # ni con confianza baja alcanza para estimar nada razonable
 
@@ -163,7 +163,7 @@ def detectar_anomalias_conteo(conn, ventana_baseline_dias=BASELINE_DIAS, solo_ul
             resultados.append(
                 Anomalia(
                     tipo="conteo_tema",
-                    clave=f"{fuente}:{tema}",
+                    clave=f"{fuente}:{marca}:{tema}",
                     fecha=dia_actual.isoformat(),
                     valor_observado=float(n_actual),
                     baseline=round(float(lam), 2),
