@@ -11,3 +11,4 @@ scratchpad/
 logfile
 logs/
 .sessions/
+.env
