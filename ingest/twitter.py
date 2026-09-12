@@ -27,7 +27,32 @@ _UA = (
     "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 )
 
-QUERIES = ["WIN internet Peru", "WIN fibra Peru", "WIN OSIPTEL", "Wi-Net Telecom"]
+QUERIES = [
+    "WIN internet Peru",
+    "WIN fibra Peru",
+    "WIN OSIPTEL",
+    "Wi-Net Telecom",
+    "WIN internet reclamo",
+    "WIN internet caido",
+    "WIN internet no funciona",
+    "WIN internet factura",
+    "WIN internet cobro",
+    "WIN internet atencion al cliente",
+    "WIN internet instalacion",
+    "WIN internet cobertura",
+    "WIN internet Indecopi",
+    "\"internet WIN\" Peru",
+    "@win.pe",
+    "WIN internet zona sin cobertura",
+    "WIN internet no llega mi zona",
+    "WIN internet filtracion datos",
+    "WIN internet privacidad",
+    "WIN internet hackeo",
+    "WIN internet estafa",
+    "WIN internet mala señal",
+    "WIN internet plan gamer queja",
+    "WIN internet soporte tecnico",
+]
 
 _STATS_LABELS = ["replies", "reposts", "likes", "views"]  # orden aproximado en el DOM de X
 

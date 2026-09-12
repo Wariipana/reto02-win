@@ -334,6 +334,9 @@ Modelos verificados como disponibles en HuggingFace:
 - precio y planes
 - publicidad y reputación
 - privacidad y datos
+- **app técnico** (agregada tras revisar el corpus real — ver "Actualización tras ampliar
+  datos" más abajo: bugs de la app propia de WIN, distinto de una avería del servicio de
+  internet)
 
 Con 150-250 ejemplos etiquetados por categoría, un fine-tuning de RoBERTuito basta. Con menos, generaliza mal.
 
@@ -384,6 +387,30 @@ privacidad_datos tienen volumen bajo — esperable dado que Google Play/News no 
 más aparece ese tipo de queja. `precio_planes` mezcla quejas de precio con noticias de
 negocio (adquisiciones, contratos mayoristas); es aceptable como primer corte pero conviene
 revisarlo antes de usarlo como dataset de entrenamiento definitivo.
+
+**Actualización tras ampliar datos (12 sep 2026, sesión de acumulación para el fine-tuning)**:
+corpus creció a 788 items (Twitter con 24 queries de marca/tema, más historial de Discord
+extraído manualmente hasta el 1 de septiembre). 272 items clasificados por reglas — mejoras
+concretas encontradas revisando el corpus real, no hipotéticas:
+
+- **Categoría nueva `app_tecnico`** (21 items): 63 quejas de Google Play sobre bugs de la app
+  (login roto, código de verificación que no llega, "actualizar datos") no encajaban en ninguna
+  de las 8 categorías originales — no es avería de *internet*, es la app en sí. Se agregó como
+  9na categoría con `enrutamiento` propio (Experiencia Cliente, P3)
+- **`privacidad_datos` ampliada con vocabulario real de threat-intel**: el hallazgo más serio
+  del corpus — un tuit de una cuenta de threat-intel reportando venta de una base de datos con
+  350.000 registros de clientes de WIN — no se clasificaba porque el diccionario sólo tenía
+  frases genéricas ("filtración de datos"), no el vocabulario real ("venta de base de datos",
+  "threat alert", "actor de amenaza", etc.). Ya corregido y verificado: el caso real ahora
+  clasifica correctamente
+- **Desempate por prioridad de categoría**: `classify()` ahora hace que `privacidad_datos` gane
+  cualquier empate/casi-empate frente a otras categorías (antes el desempate era puramente por
+  conteo de matches, y 3 casos reales de "hackearon a Win" caían en `publicidad_reputacion` por
+  tener más matches ahí que en `privacidad_datos`, a pesar de ser claramente incidentes de
+  seguridad) — justificado porque `privacidad_datos` ya es "P1 siempre" en el enrutamiento
+- Se quitó `"ciberseguridad"` sola del diccionario de `privacidad_datos`: generaba un falso
+  positivo real ("Win Negocios va por nuevo nicho con servicio de ciberseguridad" — es un
+  producto que WIN *vende*, no un incidente que sufre)
 
 ### Ajustes estadísticos por baja frecuencia
 
@@ -516,6 +543,31 @@ enrutamiento por cluster geográfico actúa independiente del z-score, igual que
 enrutamiento por prensa/escalamiento para publicidad_reputacion. Es la primera demostración
 completa del criterio central del reto ("distinguir la molestia pasajera del problema de
 verdad") con datos reales, no sintéticos.
+
+### Escalamiento directo: alertas sin depender de un pico estadístico (hueco cerrado)
+
+El CLAUDE.md original ya decía, en "Estrategia de fuentes por rol": *"Una sola nota de prensa
+no necesita pico estadístico para ser P1. Que exista ya es la señal."* — pero ese camino nunca
+se construyó: hasta esta sesión, **toda** tarjeta de alerta salía de `anomaly/detect.py`, que
+sólo detecta picos de volumen. El hallazgo más grave del corpus real (la venta de una base de
+datos de 350.000 registros de clientes de WIN, encontrada en Twitter) no generaba ninguna
+tarjeta, porque los eventos de `privacidad_datos` están dispersos en 12 años sin concentración
+temporal — nunca hay suficiente densidad para que el detector de conteos lo vea como anomalía.
+
+`alerts/generate.py::_tarjetas_por_escalamiento_directo()` cierra ese hueco: genera una tarjeta
+por cada item individual (no agrupado por día) cuyo `tema` esté en `TEMAS_ESCALAMIENTO_DIRECTO`
+(hoy sólo `privacidad_datos`) o cuyo texto contenga una señal de `SENALES_ESCALAMIENTO` — sin
+pasar por el detector de anomalías. Cada tarjeta lleva un campo `antiguedad` legible ("hace 2h",
+"hace 5d", "hace 3a") calculado con `_antiguedad_legible()`, porque un escalamiento directo no
+filtra por recencia (decisión explícita: mostrar todo el historial de eventos críticos, no sólo
+los recientes, ya que sirven también para la validación retrospectiva) — sin ese campo, un
+evento de 2022 se vería igual de urgente que uno de hoy en el tablero.
+
+`SENALES_ESCALAMIENTO` se amplió con vocabulario real de threat-intel encontrado en el corpus
+("threat alert", "data leak", "data breach", "base de datos extraída/filtrada", "venta de base
+de datos", "actor de amenaza"), y `FUENTES_PRENSA` ahora incluye `"twitter"` — X trae cobertura
+real de prensa/threat-intel además de quejas directas de usuarios, a diferencia de cuando sólo
+se consideraba RSS de medios tradicionales.
 
 ---
 

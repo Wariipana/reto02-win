@@ -303,7 +303,6 @@ KEYWORDS = {
         "autorizacion de datos",
         "tratamiento de datos",
         "trata de datos",
-        "ciberseguridad",
         "hackeo",
         "hackers",
         "hackearon",
@@ -311,6 +310,53 @@ KEYWORDS = {
         "exponen mis datos",
         "llamadas no deseadas",
         "correos no deseados",
+        "venta de base de datos",
+        "venta de datos",
+        "base de datos extraida",
+        "base de datos filtrada",
+        "base de datos expuesta",
+        "registros expuestos",
+        "clientes expuestos",
+        "actor de amenaza",
+        "threat alert",
+        "data leak",
+        "data breach",
+        "leaked",
+        "dark web",
+        "foro de hacking",
+        "vendieron mis datos",
+        "publicaron mis datos",
+        "publicaron una base de datos",
+    ],
+    "app_tecnico": [
+        "la app no funciona",
+        "la aplicacion no funciona",
+        "no me deja entrar",
+        "no puedo entrar a la app",
+        "no puedo ingresar a la app",
+        "no me deja ingresar",
+        "no carga la app",
+        "se cierra la app",
+        "se cierra sola",
+        "no llega el codigo",
+        "no me llega el mensaje de confirmacion",
+        "no llega el sms",
+        "codigo de verificacion",
+        "actualizar datos",
+        "tiempo de conexion expiro",
+        "sesion expirada",
+        "no reconoce mi contraseña",
+        "no puedo cambiar mi contraseña",
+        "app inservible",
+        "aplicacion inservible",
+        "app pesima",
+        "aplicacion pesima",
+        "app basica",
+        "bug en la app",
+        "error en la app",
+        "la app se traba",
+        "app no sirve",
+        "aplicacion no sirve",
     ],
 }
 
@@ -332,6 +378,16 @@ def _matches(texto_norm: str, frases) -> int:
     return sum(1 for _frase, regex in frases if regex.search(texto_norm))
 
 
+
+# privacidad_datos es la categoría de mayor severidad legal/reputacional (ver
+# alerts/routing.py: "P1 siempre"). Un texto que matchea esta categoría y
+# también otra (ej. "hackearon" cuenta para privacidad_datos y para
+# publicidad_reputacion por "denuncia") debe clasificarse como privacidad_datos
+# aunque no tenga el conteo más alto — perder ese caso por un desempate
+# numérico es peor que un falso positivo aquí, dado el enrutamiento P1.
+_CATEGORIA_PRIORITARIA = "privacidad_datos"
+
+
 def classify(texto: str) -> tuple[str | None, float]:
     """Devuelve (categoria, score). score = matches / total keywords de la
     categoría. Sin matches: (None, 0.0)."""
@@ -341,22 +397,21 @@ def classify(texto: str) -> tuple[str | None, float]:
     if not texto_norm:
         return None, 0.0
 
-    mejor_categoria = None
-    mejor_count = 0
-    mejor_score = 0.0
+    conteos = {}
     for categoria, frases in _COMPILED.items():
         count = _matches(texto_norm, frases)
-        if count == 0:
-            continue
-        score = count / len(frases)
-        if count > mejor_count or (count == mejor_count and score > mejor_score):
-            mejor_categoria = categoria
-            mejor_count = count
-            mejor_score = score
+        if count > 0:
+            conteos[categoria] = (count, count / len(frases))
 
-    if mejor_categoria is None:
+    if not conteos:
         return None, 0.0
-    return mejor_categoria, round(mejor_score, 4)
+
+    if _CATEGORIA_PRIORITARIA in conteos:
+        count, score = conteos[_CATEGORIA_PRIORITARIA]
+        return _CATEGORIA_PRIORITARIA, round(score, 4)
+
+    mejor_categoria = max(conteos, key=lambda c: (conteos[c][0], conteos[c][1]))
+    return mejor_categoria, round(conteos[mejor_categoria][1], 4)
 
 
 def run_and_update(conn, limit=None):

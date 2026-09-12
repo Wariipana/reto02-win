@@ -9,6 +9,7 @@ RUTAS = {
     "precio_planes": ("Experiencia Cliente", "P3"),
     "publicidad_reputacion": ("Comunicaciones / Marketing", "P2"),  # P1 si hay prensa
     "privacidad_datos": ("Comunicaciones + Legal", "P1"),  # siempre
+    "app_tecnico": ("Experiencia Cliente", "P3"),  # bugs de la app, no del servicio de internet
 }
 
 # Señales que suben la urgencia automáticamente (ver CLAUDE.md, "Enrutamiento")
@@ -20,10 +21,20 @@ SENALES_ESCALAMIENTO = [
     "me cambio de operador",
     "denuncia",
     "denunciar",
+    # vocabulario real de threat-intel/seguridad encontrado en el corpus real
+    # (ver CLAUDE.md, caso de venta de base de datos de 350k registros)
+    "threat alert",
+    "data leak",
+    "data breach",
+    "base de datos extraida",
+    "base de datos filtrada",
+    "venta de base de datos",
+    "actor de amenaza",
 ]
 
 FUENTES_PRENSA = {"google_news", "prensa_rpp", "prensa_gestion", "prensa_el_comercio",
-                   "prensa_infobae_peru", "prensa_diario_correo", "prensa_andina"}
+                   "prensa_infobae_peru", "prensa_diario_correo", "prensa_andina",
+                   "twitter"}  # X trae cobertura de prensa/threat-intel además de quejas directas
 
 
 def _sube_urgencia(texto: str, fuente: str, tema: str) -> bool:

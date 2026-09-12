@@ -20,7 +20,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "anomaly"))
 
 from connection import get_conn  # noqa: E402
 from detect import Anomalia, run as detectar  # noqa: E402
-from routing import enrutar  # noqa: E402
+from routing import SENALES_ESCALAMIENTO, enrutar  # noqa: E402
+
+# Temas que siempre generan alerta por el solo hecho de existir, sin esperar
+# un pico estadístico (ver CLAUDE.md: "una sola nota de prensa no necesita
+# pico estadístico para ser P1, que exista ya es la señal" — el mismo
+# principio se aplica aquí a privacidad_datos, que en routing.py ya es
+# "P1 siempre"). Un evento raro y grave (ej. venta de una base de datos de
+# clientes) puede no tener suficiente densidad temporal para que el detector
+# de conteos lo vea como anomalía, pero sigue siendo crítico.
+TEMAS_ESCALAMIENTO_DIRECTO = {"privacidad_datos"}
 
 TITULOS_POR_TEMA = {
     "averia_caida_servicio": "Pico de reportes de caída/avería",
@@ -31,7 +40,36 @@ TITULOS_POR_TEMA = {
     "precio_planes": "Pico de menciones sobre precios o planes",
     "publicidad_reputacion": "Pico de menciones de publicidad o reputación",
     "privacidad_datos": "Posible incidente de privacidad o filtración de datos",
+    "app_tecnico": "Pico de quejas técnicas de la app (no del servicio de internet)",
 }
+
+
+def _antiguedad_legible(fecha_iso: str) -> str:
+    """'hace 3 años', 'hace 5 días', 'hace 2 horas' — para que una tarjeta de
+    escalamiento directo (que no filtra por recencia, ver
+    TEMAS_ESCALAMIENTO_DIRECTO) deje claro de un vistazo si es un evento vivo
+    o histórico, sin descartar nada del tablero."""
+    from datetime import datetime, timezone
+
+    try:
+        fecha = datetime.fromisoformat(fecha_iso)
+    except ValueError:
+        return ""
+    if fecha.tzinfo is None:
+        fecha = fecha.replace(tzinfo=timezone.utc)
+    delta = datetime.now(timezone.utc) - fecha
+    dias = delta.days
+
+    if dias < 0:
+        return ""
+    if dias == 0:
+        horas = delta.seconds // 3600
+        return f"hace {horas}h" if horas > 0 else "hace unos minutos"
+    if dias < 30:
+        return f"hace {dias}d"
+    if dias < 365:
+        return f"hace {dias // 30}m"
+    return f"hace {dias // 365}a"
 
 
 @dataclass
@@ -49,6 +87,7 @@ class TarjetaAlerta:
     urgencia: str
     ejemplos: list = field(default_factory=list)  # [{texto, url, fuente, fecha}]
     serie_sparkline: list = field(default_factory=list)  # [(fecha, valor)]
+    antiguedad: str = ""  # "hace 2h", "hace 5d", "hace 3a" — sólo relevante para escalamiento directo
 
     def to_dict(self):
         return {
@@ -65,6 +104,7 @@ class TarjetaAlerta:
             "urgencia": self.urgencia,
             "ejemplos": self.ejemplos,
             "serie_sparkline": self.serie_sparkline,
+            "antiguedad": self.antiguedad,
         }
 
 
@@ -171,6 +211,54 @@ def construir_tarjeta(conn, anomalia: Anomalia) -> TarjetaAlerta:
     )
 
 
+def _tarjetas_por_escalamiento_directo(conn):
+    """Genera una tarjeta por cada item individual de un tema en
+    TEMAS_ESCALAMIENTO_DIRECTO, o de cualquier tema si el texto contiene una
+    señal de SENALES_ESCALAMIENTO — sin pasar por el detector de anomalías.
+    No se agrupa por día: cada item es su propio incidente potencial (a
+    diferencia de las tarjetas por conteo, que sí agrupan por (fuente, tema,
+    día))."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, texto, url, fuente, fecha, tema, geo
+            FROM items
+            WHERE tema IS NOT NULL AND texto <> '' AND es_ruido = false
+            """
+        )
+        rows = cur.fetchall()
+
+    tarjetas = []
+    for item_id, texto, url, fuente, fecha, tema, geo in rows:
+        texto_low = texto.lower()
+        es_tema_critico = tema in TEMAS_ESCALAMIENTO_DIRECTO
+        tiene_senal = any(s in texto_low for s in SENALES_ESCALAMIENTO)
+        if not es_tema_critico and not tiene_senal:
+            continue
+
+        ruta = enrutar(tema=tema, texto=texto, fuente=fuente, items_relacionados=[])
+        antiguedad = _antiguedad_legible(fecha.isoformat())
+        tarjetas.append(
+            TarjetaAlerta(
+                titular=f"{TITULOS_POR_TEMA.get(tema, f'Mención de {tema}')} — escalamiento directo",
+                marca="WIN",
+                tema=tema,
+                fuente_principal=fuente,
+                volumen=1,
+                baseline=0.0,
+                cambio_pct=0.0,
+                ventana=f"evento único, sin esperar pico estadístico ({antiguedad})",
+                severidad="alerta",
+                area=ruta["area"],
+                urgencia=ruta["urgencia"],
+                ejemplos=[{"texto": texto, "url": url, "fuente": fuente, "fecha": fecha.isoformat()}],
+                serie_sparkline=[],
+                antiguedad=antiguedad,
+            )
+        )
+    return tarjetas
+
+
 def generar_alertas(conn=None, solo_relevantes=True):
     own_conn = conn is None
     conn = conn or get_conn()
@@ -178,7 +266,9 @@ def generar_alertas(conn=None, solo_relevantes=True):
         anomalias = detectar(conn)
         if solo_relevantes:
             anomalias = [a for a in anomalias if a.severidad != "normal"]
-        return [construir_tarjeta(conn, a) for a in anomalias]
+        tarjetas_por_conteo = [construir_tarjeta(conn, a) for a in anomalias]
+        tarjetas_escalamiento = _tarjetas_por_escalamiento_directo(conn)
+        return tarjetas_por_conteo + tarjetas_escalamiento
     finally:
         if own_conn:
             conn.close()
