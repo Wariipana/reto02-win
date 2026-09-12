@@ -11,12 +11,15 @@ del archivo para el flujo manual/semi-manual de descubrimiento.
 import datetime
 import json
 import re
+from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
 from schema import Item, hash_author
 
 CUENTAS = ["win_internet", "movistarperu_oficial", "entel_peru", "claro_peru"]
+
+SESSION_STATE_PATH = Path(__file__).resolve().parent.parent / ".sessions" / "tiktok_state.json"
 
 _UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -101,6 +104,53 @@ def fetch_video_details_batch(video_urls):
                 print(f"FAIL {url}: {e}")
         browser.close()
     return results
+
+
+def discover_ids_with_session(cuenta, max_scrolls=15, scroll_wait_ms=1200):
+    """Descubre videos/fotos recientes de una cuenta usando la sesión guardada
+    en .sessions/tiktok_state.json (ver ingest/save_session.py y
+    ingest/convert_cookies.py para cómo se genera ese archivo).
+
+    Requiere que la sesión ya haya pasado el checkpoint anti-bot de TikTok al
+    menos una vez en un navegador visible (ver CLAUDE.md, sección de TikTok):
+    la primera vez que se usa una sesión nueva en un contexto headless, TikTok
+    puede mostrar un captcha de verificación que sólo un humano puede resolver.
+    Una vez resuelto y con storage_state actualizado, cargas headless
+    posteriores no lo vuelven a pedir (al menos durante la vida de esa sesión).
+
+    Devuelve una lista de URLs (video/photo), sin garantía de cobertura total
+    del historial — TikTok deja de servir más items tras cierto scroll incluso
+    con sesión válida (~26 items observado en la primera prueba real)."""
+    if not SESSION_STATE_PATH.exists():
+        raise FileNotFoundError(
+            f"No existe {SESSION_STATE_PATH}. Generar la sesión primero — ver "
+            "ingest/save_session.py (login en vivo) o ingest/convert_cookies.py "
+            "(a partir de un export manual de cookies)."
+        )
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        ctx = browser.new_context(
+            storage_state=str(SESSION_STATE_PATH),
+            user_agent=_UA,
+        )
+        page = ctx.new_page()
+        page.goto(f"https://www.tiktok.com/@{cuenta}", timeout=30000, wait_until="networkidle")
+        page.wait_for_timeout(3000)
+        for _ in range(max_scrolls):
+            page.mouse.wheel(0, 2500)
+            page.wait_for_timeout(scroll_wait_ms)
+
+        links = set(
+            page.eval_on_selector_all(
+                'a[href*="/video/"], a[href*="/photo/"]', "els => els.map(e => e.href)"
+            )
+        )
+        # persiste la sesión (por si TikTok renovó algún token durante la carga)
+        ctx.storage_state(path=str(SESSION_STATE_PATH))
+        browser.close()
+
+    return sorted(links)
 
 
 def discover_ids_from_google(cuenta, web_search_fn, max_results=20):

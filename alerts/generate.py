@@ -83,22 +83,24 @@ def _titular(anomalia: Anomalia) -> str:
     return f"{base} ({fuente})"
 
 
-def _ejemplos_reales(conn, fuente: str, tema: str, fecha, limite=3):
+def _items_del_dia(conn, fuente: str, tema: str, fecha):
+    """Todos los items de (fuente, tema, fecha) — no sólo una muestra — porque
+    el criterio de cluster geográfico (ver alerts/routing.py) necesita ver el
+    conjunto completo para contar zonas distintas, no una submuestra de 3."""
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT texto, url, fuente, fecha
+            SELECT texto, url, fuente, fecha, geo
             FROM items
             WHERE fuente = %s AND tema = %s AND fecha::date = %s
             ORDER BY fecha DESC
-            LIMIT %s
             """,
-            (fuente, tema, fecha, limite),
+            (fuente, tema, fecha),
         )
         rows = cur.fetchall()
     return [
-        {"texto": texto, "url": url, "fuente": f, "fecha": fecha_item.isoformat()}
-        for texto, url, f, fecha_item in rows
+        {"texto": texto, "url": url, "fuente": f, "fecha": fecha_item.isoformat(), "geo": geo}
+        for texto, url, f, fecha_item, geo in rows
     ]
 
 
@@ -144,12 +146,13 @@ def construir_tarjeta(conn, anomalia: Anomalia) -> TarjetaAlerta:
         )
 
     fuente, tema = anomalia.clave.split(":", 1)
-    ejemplos = _ejemplos_reales(conn, fuente, tema, anomalia.fecha[:10])
+    items_dia = _items_del_dia(conn, fuente, tema, anomalia.fecha[:10])
+    ejemplos = items_dia[:3]
     ruta = enrutar(
         tema=tema,
-        texto=" ".join(e["texto"] for e in ejemplos),
+        texto=" ".join(e["texto"] for e in items_dia),
         fuente=fuente,
-        items_relacionados=ejemplos,
+        items_relacionados=items_dia,
     )
     return TarjetaAlerta(
         titular=_titular(anomalia),

@@ -22,6 +22,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "db"))
 from connection import get_conn  # noqa: E402
 
 BASELINE_DIAS = 30
+MIN_DIAS_CONFIANZA_ALTA = 5
+MIN_DIAS_CONFIANZA_BAJA = 3  # por debajo de esto, ni siquiera se reporta
 
 
 @dataclass
@@ -34,6 +36,7 @@ class Anomalia:
     desviacion: float
     z_score: float
     severidad: str  # "normal", "atencion", "alerta"
+    confianza: str = "alta"  # "alta" (>=5 días de baseline) o "baja" (3-4 días)
 
 
 def _severidad_desde_zscore(z: float) -> str:
@@ -94,12 +97,17 @@ def detectar_anomalias_trends(conn, marcas=None, ventana_baseline_dias=BASELINE_
     return resultados
 
 
-def detectar_anomalias_conteo(conn, ventana_baseline_dias=BASELINE_DIAS):
-    """Modelo de conteos (Poisson) por (fuente, tema, día). Compara el conteo
-    del día más reciente con histórico contra la tasa esperada de Poisson
-    estimada de los días previos. Ver CLAUDE.md: con medias bajas, un z-score
-    gaussiano marca como anomalía extrema cualquier día con 2-3 eventos más de
-    lo normal, aunque sea azar — Poisson maneja esto correctamente."""
+def detectar_anomalias_conteo(conn, ventana_baseline_dias=BASELINE_DIAS, solo_ultimo_dia=False):
+    """Modelo de conteos (Poisson) por (fuente, tema, día). Para cada día de la
+    ventana (o sólo el más reciente si solo_ultimo_dia=True) compara su conteo
+    contra la tasa esperada de Poisson estimada con el resto de días (leave-
+    one-out) — así un pico real se detecta aunque ya no sea "hoy", necesario
+    tanto para alertas en vivo sobre eventos recientes como para la validación
+    retrospectiva de los tres eventos históricos (ver CLAUDE.md).
+
+    Ver CLAUDE.md: con medias bajas, un z-score gaussiano marca como anomalía
+    extrema cualquier día con 2-3 eventos más de lo normal, aunque sea azar —
+    Poisson maneja esto correctamente."""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -122,41 +130,49 @@ def detectar_anomalias_conteo(conn, ventana_baseline_dias=BASELINE_DIAS):
 
     resultados = []
     for (fuente, tema), puntos in series.items():
-        if len(puntos) < 5:
-            continue  # necesita algo de histórico para estimar la tasa base
+        if len(puntos) < MIN_DIAS_CONFIANZA_BAJA:
+            continue  # ni con confianza baja alcanza para estimar nada razonable
 
+        confianza = "alta" if len(puntos) >= MIN_DIAS_CONFIANZA_ALTA else "baja"
         puntos.sort(key=lambda p: p[0])
-        dia_actual, n_actual = puntos[-1]
-        baseline_conteos = [n for _dia, n in puntos[:-1]]
 
-        lam = np.mean(baseline_conteos)
-        if lam <= 0:
-            lam = 0.1  # evita división por cero / p-valor degenerado en series muy dispersas
+        indices_a_evaluar = [len(puntos) - 1] if solo_ultimo_dia else range(len(puntos))
 
-        # p-valor de observar n_actual o más, bajo Poisson(lam)
-        p_valor = 1 - stats.poisson.cdf(n_actual - 1, lam)
-        # z-score equivalente aproximado (para reportar en la misma escala que Trends)
-        z_aprox = (n_actual - lam) / np.sqrt(lam)
+        for i in indices_a_evaluar:
+            dia_actual, n_actual = puntos[i]
+            baseline_conteos = [n for j, (_dia, n) in enumerate(puntos) if j != i]
+            if not baseline_conteos:
+                continue
 
-        if p_valor < 0.01:
-            severidad = "alerta"
-        elif p_valor < 0.05:
-            severidad = "atencion"
-        else:
-            severidad = "normal"
+            lam = np.mean(baseline_conteos)
+            if lam <= 0:
+                lam = 0.1  # evita división por cero / p-valor degenerado en series muy dispersas
 
-        resultados.append(
-            Anomalia(
-                tipo="conteo_tema",
-                clave=f"{fuente}:{tema}",
-                fecha=dia_actual.isoformat(),
-                valor_observado=float(n_actual),
-                baseline=round(float(lam), 2),
-                desviacion=round(float(np.sqrt(lam)), 2),
-                z_score=round(float(z_aprox), 2),
-                severidad=severidad,
+            # p-valor de observar n_actual o más, bajo Poisson(lam)
+            p_valor = 1 - stats.poisson.cdf(n_actual - 1, lam)
+            # z-score equivalente aproximado (para reportar en la misma escala que Trends)
+            z_aprox = (n_actual - lam) / np.sqrt(lam)
+
+            if p_valor < 0.01:
+                severidad = "alerta"
+            elif p_valor < 0.05:
+                severidad = "atencion"
+            else:
+                severidad = "normal"
+
+            resultados.append(
+                Anomalia(
+                    tipo="conteo_tema",
+                    clave=f"{fuente}:{tema}",
+                    fecha=dia_actual.isoformat(),
+                    valor_observado=float(n_actual),
+                    baseline=round(float(lam), 2),
+                    desviacion=round(float(np.sqrt(lam)), 2),
+                    z_score=round(float(z_aprox), 2),
+                    severidad=severidad,
+                    confianza=confianza,
+                )
             )
-        )
     return resultados
 
 
@@ -178,8 +194,9 @@ if __name__ == "__main__":
         print("Sin anomalías detectadas.")
     for a in sorted(anomalias, key=lambda x: abs(x.z_score), reverse=True):
         marca_severidad = {"normal": " ", "atencion": "!", "alerta": "!!"}[a.severidad]
+        conf = f"(confianza {a.confianza})" if a.tipo == "conteo_tema" else ""
         print(
             f"[{marca_severidad}] {a.tipo:14} {a.clave:30} fecha={a.fecha} "
             f"obs={a.valor_observado:>6.1f} baseline={a.baseline:>6.2f} z={a.z_score:>6.2f} "
-            f"-> {a.severidad}"
+            f"-> {a.severidad} {conf}"
         )

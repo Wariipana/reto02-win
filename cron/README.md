@@ -7,7 +7,8 @@
 | Google Trends | Sí | cada 15 min |
 | Google News + prensa | Sí | cada 30 min |
 | Google Play | Sí | cada 30 min |
-| TikTok | **No** — manual | requiere sesión de navegador para descubrir posts nuevos (ver `ingest/tiktok.py`, notas al final del archivo, y CLAUDE.md sección "TikTok: cómo se resolvió el bloqueo del WAF") |
+| TikTok | Sí (desde 2026-09-12) | cada 4 horas, usando cookies de sesión guardadas + captcha ya resuelto una vez (ver CLAUDE.md, sección TikTok, para el detalle completo y el aviso de seguridad sobre cómo se compartieron las cookies) |
+| Discord (#general) | **No** — manual, y **no automatizable por ToS** | extracción histórica + polling periódico manual (ver CLAUDE.md sección Discord: conectar la cuenta de usuario al Gateway de Discord, aunque sea sólo lectura, es un "self-bot" prohibido) |
 | Enriquecimiento NLP (Capa 3: sentimiento + embeddings) | Sí | minutos 5 y 35 (5 min después del ciclo de ingesta de 30 min) |
 | Clasificador de tema por reglas (Capa 3) | Sí | minutos 10 y 40 |
 | Detección de anomalías + tarjetas de alerta (Capa 4/5) | Sí | minutos 15 y 45 |
@@ -24,10 +25,16 @@ evita duplicar puntos.
 */15 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh trends  >> .../logs/cron.log 2>&1
 */30 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh news    >> .../logs/cron.log 2>&1
 */30 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh play    >> .../logs/cron.log 2>&1
+0 */4 * * *  /config/Projects/reto02-win/cron/run_pipeline.sh tiktok  >> .../logs/cron.log 2>&1
 5,35  * * * * /config/Projects/reto02-win/cron/run_pipeline.sh enrich >> .../logs/cron.log 2>&1
 10,40 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh rules  >> .../logs/cron.log 2>&1
 15,45 * * * * /config/Projects/reto02-win/cron/run_pipeline.sh alerts >> .../logs/cron.log 2>&1
 ```
+
+TikTok corre cada 4h (no cada 15-30 min como el resto) porque hace scroll real sobre 4 cuentas —
+más lento, y la cuenta objetivo postea a menos de 1 vez/día, así que no hace falta más frecuencia.
+Usa `/lsiopy/bin/python3` en vez del `python3` del sistema porque es el único intérprete con
+Playwright instalado (ver `db/README.md`).
 
 El pipeline completo corre en cadena dentro de cada media hora: ingesta en el minuto 0/30,
 enriquecimiento NLP 5 min después, clasificador de tema 5 min después de eso, y generación de

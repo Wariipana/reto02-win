@@ -119,10 +119,40 @@ def run_play_store(conn, idx: DedupIndex):
     )
 
 
-def run_tiktok(conn, idx: DedupIndex, urls_file: str):
+def run_discord(conn, idx: DedupIndex, mensajes_file: str):
+    """mensajes_file: JSON con una lista de {texto, fecha_iso, autor} extraída
+    manualmente (ver ingest/discord_manual.py). No hay descubrimiento
+    automático — Discord no se automatiza en tiempo real por ToS (ver
+    CLAUDE.md, sección Discord)."""
+    import json
+
+    import discord_manual
+
+    mensajes = json.loads(Path(mensajes_file).read_text())
+    items = discord_manual.parse_manual_batch(mensajes)
+    kept = _filter_new(items, idx)
+    n = _insert_items(conn, kept)
+    log.info("[discord] %d recolectados, %d tras dedup, %d insertados", len(items), len(kept), n)
+
+
+def run_tiktok(conn, idx: DedupIndex, urls_file: str = None):
     import tiktok
 
-    urls = Path(urls_file).read_text().split()
+    if urls_file:
+        urls = Path(urls_file).read_text().split()
+    else:
+        # usa la sesión guardada (ver ingest/tiktok.py, discover_ids_with_session)
+        # en vez de requerir una lista manual de URLs
+        urls = []
+        for cuenta in tiktok.CUENTAS:
+            try:
+                urls.extend(tiktok.discover_ids_with_session(cuenta))
+            except FileNotFoundError as e:
+                log.warning("[tiktok] %s", e)
+                return
+            except Exception:
+                log.exception("[tiktok] descubrimiento falló para @%s", cuenta)
+
     items = tiktok.fetch_video_details_batch(urls)
     kept = _filter_new(items, idx)
     n = _insert_items(conn, kept)
@@ -157,8 +187,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--tiktok", help="archivo con URLs de video de TikTok, una por línea")
     parser.add_argument(
+        "--discord",
+        help="archivo JSON con mensajes de Discord extraídos manualmente "
+        "(lista de {texto, fecha_iso, autor})",
+    )
+    parser.add_argument(
         "--only",
-        choices=["trends", "news", "play"],
+        choices=["trends", "news", "play", "tiktok"],
         help="correr sólo esta fuente (para invocar desde cron con su propio intervalo)",
     )
     parser.add_argument("--skip-trends", action="store_true")
@@ -180,8 +215,10 @@ def main():
         _safe("news", lambda: run_news(conn, idx))
     if do_play:
         _safe("play_store", lambda: run_play_store(conn, idx))
-    if args.tiktok:
+    if args.only == "tiktok" or args.tiktok:
         _safe("tiktok", lambda: run_tiktok(conn, idx, args.tiktok))
+    if args.discord:
+        _safe("discord", lambda: run_discord(conn, idx, args.discord))
 
     conn.close()
 

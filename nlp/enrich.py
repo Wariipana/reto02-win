@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "db"))
 
 from connection import get_conn  # noqa: E402
+from geo import extraer_geo  # noqa: E402
 
 _analyzer = None
 _embedder = None
@@ -67,12 +68,13 @@ def enrich_batch(conn, rows, batch_size=32):
 
         sentimientos = [analyzer.predict(t).output for t in textos]
         embeddings = embedder.encode(textos, show_progress_bar=False)
+        geos = [extraer_geo(t) for t in textos]
 
         with conn.cursor() as cur:
-            for item_id, sent, emb in zip(ids, sentimientos, embeddings):
+            for item_id, sent, emb, geo in zip(ids, sentimientos, embeddings, geos):
                 cur.execute(
-                    "UPDATE items SET sentimiento = %s, embedding = %s WHERE id = %s",
-                    (sent, emb.tolist(), item_id),
+                    "UPDATE items SET sentimiento = %s, embedding = %s, geo = %s WHERE id = %s",
+                    (sent, emb.tolist(), geo, item_id),
                 )
         conn.commit()
         total += len(chunk)

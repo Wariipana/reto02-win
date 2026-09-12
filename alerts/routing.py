@@ -36,9 +36,15 @@ def _sube_urgencia(texto: str, fuente: str, tema: str) -> bool:
 
 
 def _es_cluster_geografico(items_relacionados) -> bool:
-    """Placeholder simple: 2+ items del mismo tema con geo no-nulo distinto entre sí,
-    o simplemente 3+ items en la misma ventana temporal (proxy hasta tener NER de geo
-    con cobertura real — ver CLAUDE.md, sección de mapa de calor)."""
+    """Cluster geográfico real: 2+ zonas *distintas* mencionadas en items del
+    mismo tema, en la misma ventana temporal (implica que el problema no es
+    aislado a un solo cliente/zona, sino un patrón). Cae a un proxy por
+    volumen (3+ items) si ninguno trae geo — cobertura de NER es baja (ver
+    CLAUDE.md, advertencia del mapa de calor), así que no se puede exigir geo
+    en todos los casos sin perder recall."""
+    geos = {it.get("geo") for it in items_relacionados if it.get("geo")}
+    if len(geos) >= 2:
+        return True
     return len(items_relacionados) >= 3
 
 
