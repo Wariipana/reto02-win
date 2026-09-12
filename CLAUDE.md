@@ -2,6 +2,11 @@
 
 Contexto de proyecto para Claude Code. Léelo completo antes de escribir código.
 
+**Datos de ejemplo**: `sample_data/` tiene un dataset sintético (ficticio, no real)
+con el mismo esquema que la base real, para que otro agente entienda la
+estructura sin necesitar acceso a la base de datos ni exponer contenido real
+de terceros. Ver `sample_data/README.md`.
+
 ---
 
 ## Estado de la tarea inicial (fuente adicional) — RESUELTO

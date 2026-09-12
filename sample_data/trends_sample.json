@@ -1,0 +1,434 @@
+[
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T00:00:00-05:00",
+    "valor": 10,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T01:00:00-05:00",
+    "valor": 7,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T02:00:00-05:00",
+    "valor": 15,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T03:00:00-05:00",
+    "valor": 14,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T04:00:00-05:00",
+    "valor": 14,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T05:00:00-05:00",
+    "valor": 11,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T06:00:00-05:00",
+    "valor": 10,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T07:00:00-05:00",
+    "valor": 9,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T08:00:00-05:00",
+    "valor": 20,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T09:00:00-05:00",
+    "valor": 8,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T10:00:00-05:00",
+    "valor": 7,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T11:00:00-05:00",
+    "valor": 9,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T12:00:00-05:00",
+    "valor": 13,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T13:00:00-05:00",
+    "valor": 14,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T14:00:00-05:00",
+    "valor": 23,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T15:00:00-05:00",
+    "valor": 7,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T16:00:00-05:00",
+    "valor": 13,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T17:00:00-05:00",
+    "valor": 20,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T18:00:00-05:00",
+    "valor": 14,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T19:00:00-05:00",
+    "valor": 21,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T20:00:00-05:00",
+    "valor": 15,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T21:00:00-05:00",
+    "valor": 7,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T22:00:00-05:00",
+    "valor": 12,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "WIN internet",
+    "fecha": "2026-09-12T23:00:00-05:00",
+    "valor": 20,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T00:00:00-05:00",
+    "valor": 27,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T01:00:00-05:00",
+    "valor": 25,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T02:00:00-05:00",
+    "valor": 21,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T03:00:00-05:00",
+    "valor": 23,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T04:00:00-05:00",
+    "valor": 27,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T05:00:00-05:00",
+    "valor": 20,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T06:00:00-05:00",
+    "valor": 19,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T07:00:00-05:00",
+    "valor": 29,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T08:00:00-05:00",
+    "valor": 20,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T09:00:00-05:00",
+    "valor": 28,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T10:00:00-05:00",
+    "valor": 28,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T11:00:00-05:00",
+    "valor": 25,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T12:00:00-05:00",
+    "valor": 18,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T13:00:00-05:00",
+    "valor": 31,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T14:00:00-05:00",
+    "valor": 20,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T15:00:00-05:00",
+    "valor": 29,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T16:00:00-05:00",
+    "valor": 19,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T17:00:00-05:00",
+    "valor": 26,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T18:00:00-05:00",
+    "valor": 28,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T19:00:00-05:00",
+    "valor": 23,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T20:00:00-05:00",
+    "valor": 19,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T21:00:00-05:00",
+    "valor": 18,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T22:00:00-05:00",
+    "valor": 24,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Movistar Peru",
+    "fecha": "2026-09-12T23:00:00-05:00",
+    "valor": 26,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T00:00:00-05:00",
+    "valor": 14,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T01:00:00-05:00",
+    "valor": 19,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T02:00:00-05:00",
+    "valor": 15,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T03:00:00-05:00",
+    "valor": 24,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T04:00:00-05:00",
+    "valor": 20,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T05:00:00-05:00",
+    "valor": 26,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T06:00:00-05:00",
+    "valor": 23,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T07:00:00-05:00",
+    "valor": 17,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T08:00:00-05:00",
+    "valor": 23,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T09:00:00-05:00",
+    "valor": 23,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T10:00:00-05:00",
+    "valor": 18,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T11:00:00-05:00",
+    "valor": 20,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T12:00:00-05:00",
+    "valor": 14,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T13:00:00-05:00",
+    "valor": 17,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T14:00:00-05:00",
+    "valor": 19,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T15:00:00-05:00",
+    "valor": 17,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T16:00:00-05:00",
+    "valor": 26,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T17:00:00-05:00",
+    "valor": 24,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T18:00:00-05:00",
+    "valor": 20,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T19:00:00-05:00",
+    "valor": 19,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T20:00:00-05:00",
+    "valor": 22,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T21:00:00-05:00",
+    "valor": 13,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T22:00:00-05:00",
+    "valor": 19,
+    "granularidad": "hora"
+  },
+  {
+    "marca": "Claro Peru",
+    "fecha": "2026-09-12T23:00:00-05:00",
+    "valor": 13,
+    "granularidad": "hora"
+  }
+]
